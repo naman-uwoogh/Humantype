@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HumanType — Document Rewriter</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --paper: #f5f0e8;
+    --cream: #ede8dc;
+    --accent: #c94040;
+    --gold: #c9943a;
+    --muted: #7a7265;
+    --line: #d4cfc4;
+    --success: #2d7a4f;
+    --shadow: rgba(26,26,46,0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.6;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 980px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header {
+    padding: 40px 0 32px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 48px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .logo-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.2rem;
+    color: var(--ink);
+    letter-spacing: -0.03em;
+  }
+
+  .logo-dot { color: var(--accent); }
+
+  .logo-tag {
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--cream);
+    border: 1px solid var(--line);
+    padding: 3px 8px;
+    border-radius: 3px;
+  }
+
+  .tagline {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.93rem;
+    font-weight: 300;
+  }
+
+  /* Two-column layout */
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+
+  @media (max-width: 700px) {
+    .columns { grid-template-columns: 1fr; }
+  }
+
+  /* Panel */
+  .panel {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 2px 12px var(--shadow);
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--cream);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .panel-number {
+    width: 22px; height: 22px;
+    background: var(--ink);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.72rem;
+    font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .panel-body { padding: 20px; }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--line);
+    border-radius: 6px;
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: #fff5f5;
+  }
+
+  .upload-zone input {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .upload-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .upload-label {
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .upload-label strong {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 16px 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--line);
+  }
+
+  /* Paste area */
+  .paste-area {
+    width: 100%;
+    min-height: 140px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    color: var(--ink);
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #fafaf8;
+    line-height: 1.6;
+  }
+
+  .paste-area:focus { border-color: var(--accent); background: white; }
+
+  .paste-hint {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  /* Speed control */
+  .speed-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .speed-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .speed-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 3px;
+    background: var(--line);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  .speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .speed-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 5px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: 0.01em;
+  }
+
+  .btn-primary {
+    background: var(--ink);
+    color: white;
+    width: 100%;
+    justify-content: center;
+    margin-top: 16px;
+  }
+
+  .btn-primary:hover { background: #2d2d4a; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    padding: 7px 14px;
+    font-size: 0.8rem;
+  }
+
+  .btn-outline:hover { border-color: var(--ink); background: var(--cream); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid #f0c8c8;
+    padding: 7px 14px;
+    font-size: 0.8rem;
+  }
+
+  .btn-danger:hover { background: #fff0f0; }
+
+  /* Status badge */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+  }
+
+  .status-idle { background: var(--cream); color: var(--muted); border: 1px solid var(--line); }
+  .status-typing { background: #fff4e0; color: #8a5c00; border: 1px solid #f0d8a0; }
+  .status-done { background: #e8f5ee; color: var(--success); border: 1px solid #b8dfc8; }
+
+  .pulse {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Output document */
+  .output-doc {
+    min-height: 300px;
+    max-height: 600px;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 24px 28px;
+    background: white;
+    font-size: 0.92rem;
+    line-height: 1.7;
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+    position: relative;
+  }
+
+  .output-doc:empty::before {
+    content: 'Output will appear here as words are typed…';
+    color: #c0bbb0;
+    font-style: italic;
+    font-size: 0.88rem;
+  }
+
+  /* Cursor */
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    background: var(--accent);
+    vertical-align: text-bottom;
+    animation: blink 0.7s infinite;
+    margin-left: 1px;
+  }
+
+  @keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  /* Rendered document formatting */
+  .output-doc h1 { font-family: 'DM Serif Display', serif; font-size: 1.6rem; margin: 1em 0 0.4em; line-height: 1.25; }
+  .output-doc h2 { font-family: 'DM Serif Display', serif; font-size: 1.25rem; margin: 0.9em 0 0.3em; line-height: 1.3; }
+  .output-doc h3 { font-size: 1.05rem; font-weight: 600; margin: 0.8em 0 0.25em; }
+  .output-doc p { margin: 0 0 0.6em; }
+  .output-doc strong { font-weight: 700; }
+  .output-doc em { font-style: italic; }
+  .output-doc ul, .output-doc ol { padding-left: 1.6em; margin: 0.4em 0 0.6em; }
+  .output-doc li { margin: 0.2em 0; }
+  .output-doc blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 14px;
+    color: var(--muted);
+    font-style: italic;
+    margin: 0.6em 0;
+  }
+  .output-doc code {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.83em;
+    background: var(--cream);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .output-doc pre {
+    background: var(--cream);
+    padding: 12px 16px;
+    border-radius: 5px;
+    overflow-x: auto;
+    font-size: 0.83em;
+    margin: 0.6em 0;
+  }
+
+  /* Tables */
+  .output-doc table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.8em 0;
+    font-size: 0.88rem;
+  }
+
+  .output-doc th {
+    background: var(--cream);
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+  }
+
+  .output-doc td {
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  .output-doc tr:nth-child(even) td { background: #faf9f6; }
+
+  /* Progress bar */
+  .progress-wrap {
+    height: 3px;
+    background: var(--line);
+    border-radius: 2px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    border-radius: 2px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    font-size: 0.75rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .stat strong {
+    color: var(--ink);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+  }
+
+  /* File chip */
+  .file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    color: var(--ink);
+    margin-top: 12px;
+  }
+
+  .file-chip .remove-file {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  .file-chip .remove-file:hover { color: var(--accent); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 28px; right: 28px;
+    background: var(--ink);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 999;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* Export button area */
+  .export-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <span class="logo-text">HumanType<span class="logo-dot">.</span></span>
+      <span class="logo-tag">Document Rewriter</span>
+    </div>
+    <p class="tagline">Paste or upload a Google Doc / Word file — watch it rewrite itself, word by word, preserving every format and table.</p>
+  </header>
+
+  <div class="columns">
+
+    <!-- LEFT: Input Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-number">1</div>
+        <span class="panel-title">Source Document</span>
+      </div>
+      <div class="panel-body">
+
+        <!-- File upload -->
+        <div class="upload-zone" id="dropZone">
+          <input type="file" id="fileInput" accept=".docx,.doc,.txt,.html,.htm">
+          <span class="upload-icon">📄</span>
+          <div class="upload-label">
+            <strong>Click to upload</strong> or drag & drop<br>
+            .docx · .html · .txt supported
+          </div>
+        </div>
+        <div id="fileChip" style="display:none" class="file-chip">
+          <span>📎</span>
+          <span id="fileName"></span>
+          <span class="remove-file" id="removeFile">✕</span>
+        </div>
+
+        <div class="divider">or paste content</div>
+
+        <!-- Paste area — accepts rich text -->
+        <div
+          id="pasteArea"
+          class="paste-area"
+          contenteditable="true"
+          placeholder="Paste your Google Doc or Word content here (Ctrl+V)…"
+          style="min-height:140px; outline:none;"
+        ></div>
+        <p class="paste-hint">Tip: Copy from Google Docs or Word and paste here — bold, tables, headings are preserved automatically.</p>
+
+        <div class="speed-row">
+          <span class="speed-label">⌨ Typing speed</span>
+          <input type="range" class="speed-slider" id="speedSlider" min="20" max="500" value="120">
+          <span class="speed-val" id="speedVal">120 ms</span>
+        </div>
+
+        <button class="btn btn-primary" id="startBtn">
+          ▶ Start Typing
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-number">2</div>
+        <span class="panel-title">Output</span>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button class="btn btn-outline" id="pauseBtn" style="display:none">⏸ Pause</button>
+          <button class="btn btn-danger" id="stopBtn" style="display:none">■ Stop</button>
+        </div>
+      </div>
+      <div class="panel-body">
+
+        <div class="status-bar">
+          <span class="status-badge status-idle" id="statusBadge">
+            <span class="pulse" style="opacity:0.4"></span>
+            Idle
+          </span>
+          <span style="font-size:0.78rem; color:var(--muted);" id="wordCounter">0 words</span>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <div class="output-doc" id="outputDoc"></div>
+
+        <div class="stats-row">
+          <span class="stat">Words typed: <strong id="statWords">0</strong></span>
+          <span class="stat">Time: <strong id="statTime">0s</strong></span>
+          <span class="stat">Speed: <strong id="statWpm">0</strong> wpm</span>
+        </div>
+
+        <div class="export-row" id="exportRow" style="display:none">
+          <button class="btn btn-outline" id="copyBtn">📋 Copy</button>
+          <button class="btn btn-outline" id="downloadHtmlBtn">⬇ HTML</button>
+          <button class="btn btn-outline" id="clearOutputBtn">🗑 Clear</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let tokens = [];       // Array of {type, content, tag?, attrs?, html?}
+let tokenIdx = 0;
+let paused = false;
+let stopped = false;
+let timer = null;
+let startTime = null;
+let wordCount = 0;
+let totalWords = 0;
+let sourceHTML = '';
+
+// ─── DOM refs ─────────────────────────────────────────────────────────────────
+const fileInput    = document.getElementById('fileInput');
+const dropZone     = document.getElementById('dropZone');
+const fileChip     = document.getElementById('fileChip');
+const fileName     = document.getElementById('fileName');
+const removeFile   = document.getElementById('removeFile');
+const pasteArea    = document.getElementById('pasteArea');
+const speedSlider  = document.getElementById('speedSlider');
+const speedVal     = document.getElementById('speedVal');
+const startBtn     = document.getElementById('startBtn');
+const pauseBtn     = document.getElementById('pauseBtn');
+const stopBtn      = document.getElementById('stopBtn');
+const outputDoc    = document.getElementById('outputDoc');
+const statusBadge  = document.getElementById('statusBadge');
+const wordCounter  = document.getElementById('wordCounter');
+const progressBar  = document.getElementById('progressBar');
+const statWords    = document.getElementById('statWords');
+const statTime     = document.getElementById('statTime');
+const statWpm      = document.getElementById('statWpm');
+const exportRow    = document.getElementById('exportRow');
+const copyBtn      = document.getElementById('copyBtn');
+const downloadHtmlBtn = document.getElementById('downloadHtmlBtn');
+const clearOutputBtn  = document.getElementById('clearOutputBtn');
+const toast        = document.getElementById('toast');
+
+// ─── Speed slider ─────────────────────────────────────────────────────────────
+speedSlider.addEventListener('input', () => {
+  speedVal.textContent = speedSlider.value + ' ms';
+});
+
+// ─── File upload ──────────────────────────────────────────────────────────────
+fileInput.addEventListener('change', handleFileSelect);
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) processFile(f);
+});
+
+removeFile.addEventListener('click', () => {
+  fileChip.style.display = 'none';
+  fileInput.value = '';
+  sourceHTML = '';
+  pasteArea.innerHTML = '';
+});
+
+function handleFileSelect(e) {
+  const f = e.target.files[0];
+  if (f) processFile(f);
+}
+
+function processFile(f) {
+  fileName.textContent = f.name;
+  fileChip.style.display = 'inline-flex';
+
+  const ext = f.name.split('.').pop().toLowerCase();
+
+  if (ext === 'docx' || ext === 'doc') {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const arrayBuffer = ev.target.result;
+      mammoth.convertToHtml({ arrayBuffer })
+        .then(result => {
+          sourceHTML = result.value;
+          pasteArea.innerHTML = sourceHTML;
+          showToast('✓ Word document loaded');
+        })
+        .catch(err => showToast('Error reading .docx: ' + err.message));
+    };
+    reader.readAsArrayBuffer(f);
+  } else if (ext === 'html' || ext === 'htm') {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(ev.target.result, 'text/html');
+      sourceHTML = doc.body.innerHTML;
+      pasteArea.innerHTML = sourceHTML;
+      showToast('✓ HTML file loaded');
+    };
+    reader.readAsText(f);
+  } else if (ext === 'txt') {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const lines = ev.target.result.split('\n');
+      sourceHTML = lines.map(l => `<p>${escapeHtml(l)}</p>`).join('');
+      pasteArea.innerHTML = sourceHTML;
+      showToast('✓ Text file loaded');
+    };
+    reader.readAsText(f);
+  } else {
+    showToast('Unsupported file type');
+  }
+}
+
+function escapeHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Tokenizer ────────────────────────────────────────────────────────────────
+// Walks the DOM tree and produces a flat token stream:
+//   {type:'open', tag, attrs}
+//   {type:'word', content}
+//   {type:'space'}
+//   {type:'close', tag}
+//   {type:'br'}
+//   {type:'table', html}   ← entire table typed at once, cell by cell
+
+function tokenizeNode(node, out) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const words = node.textContent.split(/(\s+)/);
+    for (const w of words) {
+      if (w === '') continue;
+      if (/^\s+$/.test(w)) {
+        out.push({ type: 'space', content: w });
+      } else {
+        out.push({ type: 'word', content: w });
+      }
+    }
+    return;
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+  const tag = node.tagName.toLowerCase();
+
+  // Tables: extract and produce cell-by-cell tokens
+  if (tag === 'table') {
+    tokenizeTable(node, out);
+    return;
+  }
+
+  // Inline-ish elements we open/close around word tokens
+  const inlineTags = ['b','strong','i','em','u','s','strike','code','mark','sup','sub','span','a','label'];
+  const blockTags  = ['p','div','h1','h2','h3','h4','h5','h6','li','blockquote','pre','section','article','header','footer','td','th'];
+
+  const attrs = {};
+  for (const attr of node.attributes) attrs[attr.name] = attr.value;
+
+  if (blockTags.includes(tag)) {
+    out.push({ type: 'open', tag, attrs });
+    for (const child of node.childNodes) tokenizeNode(child, out);
+    out.push({ type: 'close', tag });
+  } else if (inlineTags.includes(tag)) {
+    out.push({ type: 'open', tag, attrs });
+    for (const child of node.childNodes) tokenizeNode(child, out);
+    out.push({ type: 'close', tag });
+  } else if (tag === 'br') {
+    out.push({ type: 'br' });
+  } else if (['ul','ol'].includes(tag)) {
+    out.push({ type: 'open', tag, attrs });
+    for (const child of node.childNodes) tokenizeNode(child, out);
+    out.push({ type: 'close', tag });
+  } else if (['thead','tbody','tr'].includes(tag)) {
+    // handled by tokenizeTable
+  } else {
+    // unknown/misc
+    for (const child of node.childNodes) tokenizeNode(child, out);
+  }
+}
+
+function tokenizeTable(tableNode, out) {
+  // Produce tokens for the table structure: open table, then row by row, cell by cell (word by word)
+  const attrs = {};
+  for (const attr of tableNode.attributes) attrs[attr.name] = attr.value;
+  out.push({ type: 'open', tag: 'table', attrs });
+
+  for (const child of tableNode.childNodes) {
+    const ctag = child.tagName ? child.tagName.toLowerCase() : '';
+    if (ctag === 'thead' || ctag === 'tbody' || ctag === 'tfoot') {
+      out.push({ type: 'open', tag: ctag, attrs: {} });
+      for (const row of child.childNodes) {
+        if (row.tagName && row.tagName.toLowerCase() === 'tr') tokenizeTableRow(row, out);
+      }
+      out.push({ type: 'close', tag: ctag });
+    } else if (ctag === 'tr') {
+      tokenizeTableRow(child, out);
+    }
+  }
+
+  out.push({ type: 'close', tag: 'table' });
+}
+
+function tokenizeTableRow(rowNode, out) {
+  out.push({ type: 'open', tag: 'tr', attrs: {} });
+  for (const cell of rowNode.childNodes) {
+    const ctag = cell.tagName ? cell.tagName.toLowerCase() : '';
+    if (ctag === 'td' || ctag === 'th') {
+      const attrs = {};
+      for (const attr of cell.attributes) attrs[attr.name] = attr.value;
+      out.push({ type: 'open', tag: ctag, attrs });
+      for (const child of cell.childNodes) tokenizeNode(child, out);
+      out.push({ type: 'close', tag: ctag });
+    }
+  }
+  out.push({ type: 'close', tag: 'tr' });
+}
+
+// ─── Renderer ─────────────────────────────────────────────────────────────────
+// Maintains a "live" DOM element stack inside outputDoc
+
+let elemStack = []; // stack of live DOM elements
+
+function renderTokens() {
+  // Build initial DOM skeleton (empty containers for block elements)
+  outputDoc.innerHTML = '';
+  elemStack = [outputDoc];
+}
+
+function applyToken(tok) {
+  const current = () => elemStack[elemStack.length - 1];
+
+  if (tok.type === 'open') {
+    const el = document.createElement(tok.tag);
+    // apply key attributes
+    if (tok.attrs) {
+      if (tok.attrs.colspan) el.setAttribute('colspan', tok.attrs.colspan);
+      if (tok.attrs.rowspan) el.setAttribute('rowspan', tok.attrs.rowspan);
+      if (tok.attrs.style)   el.setAttribute('style', tok.attrs.style);
+      if (tok.attrs.href)    el.setAttribute('href', tok.attrs.href);
+      if (tok.attrs.class)   el.setAttribute('class', tok.attrs.class);
+    }
+    current().appendChild(el);
+    elemStack.push(el);
+
+  } else if (tok.type === 'close') {
+    // pop until we find this tag (handles mismatched nesting gracefully)
+    while (elemStack.length > 1) {
+      const popped = elemStack.pop();
+      if (popped.tagName && popped.tagName.toLowerCase() === tok.tag) break;
+    }
+
+  } else if (tok.type === 'word') {
+    const tn = document.createTextNode(tok.content);
+    current().appendChild(tn);
+    wordCount++;
+
+  } else if (tok.type === 'space') {
+    const tn = document.createTextNode(tok.content);
+    current().appendChild(tn);
+
+  } else if (tok.type === 'br') {
+    current().appendChild(document.createElement('br'));
+  }
+}
+
+// ─── Typing loop ──────────────────────────────────────────────────────────────
+function startTyping() {
+  const html = pasteArea.innerHTML.trim();
+  if (!html) { showToast('Please paste content or upload a file first.'); return; }
+
+  // Parse
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<body>${html}</body>`, 'text/html');
+  tokens = [];
+  for (const child of doc.body.childNodes) tokenizeNode(child, tokens);
+
+  totalWords = tokens.filter(t => t.type === 'word').length;
+  if (totalWords === 0) { showToast('No text content found.'); return; }
+
+  // Init
+  tokenIdx = 0;
+  wordCount = 0;
+  paused = false;
+  stopped = false;
+  startTime = Date.now();
+  renderTokens();
+
+  wordCounter.textContent = `${totalWords} words total`;
+  setStatus('typing');
+  startBtn.disabled = true;
+  pauseBtn.style.display = '';
+  stopBtn.style.display = '';
+  exportRow.style.display = 'none';
+
+  // Attach cursor
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor';
+  outputDoc.appendChild(cursor);
+
+  tick(cursor);
+}
+
+function tick(cursor) {
+  if (stopped || tokenIdx >= tokens.length) {
+    // Remove cursor from wherever it is
+    if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+    setStatus('done');
+    startBtn.disabled = false;
+    pauseBtn.style.display = 'none';
+    stopBtn.style.display = 'none';
+    exportRow.style.display = 'flex';
+    updateStats();
+    if (!stopped) showToast('✓ Done typing!');
+    return;
+  }
+
+  if (paused) { timer = setTimeout(() => tick(cursor), 100); return; }
+
+  const tok = tokens[tokenIdx++];
+  applyToken(tok);
+
+  // Move cursor to end of current element
+  const cur = elemStack[elemStack.length - 1];
+  cur.appendChild(cursor);
+  cursor.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+  updateStats();
+
+  const speed = parseInt(speedSlider.value);
+  // Words take full delay; spaces/structs are instant
+  const delay = tok.type === 'word' ? speed + Math.random() * speed * 0.4 - speed * 0.2
+    : tok.type === 'space' ? speed * 0.1
+    : 0;
+
+  timer = setTimeout(() => tick(cursor), Math.max(0, delay));
+}
+
+function updateStats() {
+  statWords.textContent = wordCount;
+  const elapsed = Math.round((Date.now() - startTime) / 1000);
+  statTime.textContent = elapsed + 's';
+  const wpm = elapsed > 0 ? Math.round((wordCount / elapsed) * 60) : 0;
+  statWpm.textContent = wpm;
+  const pct = totalWords > 0 ? (wordCount / totalWords) * 100 : 0;
+  progressBar.style.width = pct + '%';
+}
+
+// ─── Controls ─────────────────────────────────────────────────────────────────
+startBtn.addEventListener('click', startTyping);
+
+pauseBtn.addEventListener('click', () => {
+  paused = !paused;
+  pauseBtn.textContent = paused ? '▶ Resume' : '⏸ Pause';
+  setStatus(paused ? 'idle' : 'typing');
+});
+
+stopBtn.addEventListener('click', () => {
+  stopped = true;
+  clearTimeout(timer);
+  setStatus('idle');
+  startBtn.disabled = false;
+  pauseBtn.style.display = 'none';
+  stopBtn.style.display = 'none';
+  exportRow.style.display = 'flex';
+  // remove cursor
+  document.querySelectorAll('.cursor').forEach(c => c.remove());
+});
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+copyBtn.addEventListener('click', () => {
+  const range = document.createRange();
+  range.selectNodeContents(outputDoc);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  document.execCommand('copy');
+  sel.removeAllRanges();
+  showToast('✓ Copied to clipboard');
+});
+
+downloadHtmlBtn.addEventListener('click', () => {
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>HumanType Export</title><style>
+  body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 0 24px; line-height: 1.7; color: #1a1a2e; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #d4cfc4; padding: 8px 12px; text-align: left; }
+  th { background: #ede8dc; font-weight: 600; }
+  </style></head><body>${outputDoc.innerHTML}</body></html>`;
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'humantype-export.html';
+  a.click();
+  showToast('✓ Downloaded');
+});
+
+clearOutputBtn.addEventListener('click', () => {
+  outputDoc.innerHTML = '';
+  progressBar.style.width = '0%';
+  statWords.textContent = '0';
+  statTime.textContent = '0s';
+  statWpm.textContent = '0';
+  wordCounter.textContent = '0 words';
+  exportRow.style.display = 'none';
+  setStatus('idle');
+});
+
+// ─── Status badge ─────────────────────────────────────────────────────────────
+function setStatus(state) {
+  statusBadge.className = 'status-badge';
+  if (state === 'typing') {
+    statusBadge.classList.add('status-typing');
+    statusBadge.innerHTML = '<span class="pulse"></span> Typing…';
+  } else if (state === 'done') {
+    statusBadge.classList.add('status-done');
+    statusBadge.innerHTML = '✓ Complete';
+  } else {
+    statusBadge.classList.add('status-idle');
+    statusBadge.innerHTML = '<span class="pulse" style="opacity:0.4"></span> Idle';
+  }
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ─── Placeholder for contenteditable ──────────────────────────────────────────
+pasteArea.addEventListener('focus', () => pasteArea.style.opacity = '1');
+
+// placeholder via CSS attr trick
+pasteArea.addEventListener('input', () => {
+  if (pasteArea.innerHTML.trim() === '' || pasteArea.innerHTML === '<br>') {
+    pasteArea.innerHTML = '';
+  }
+});
+</script>
+</body>
+</html>
