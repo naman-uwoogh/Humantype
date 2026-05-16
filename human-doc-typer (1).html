@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HumanType — Document Rewriter</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1a1a2e;--paper:#f5f0e8;--cream:#ede8dc;--accent:#c94040;--gold:#c9943a;--muted:#7a7265;--line:#d4cfc4;--success:#2d7a4f;--shadow:rgba(26,26,46,0.12);--blue:#2563eb}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.6}
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:0 24px}
+header{padding:36px 0 28px;border-bottom:1px solid var(--line);margin-bottom:40px}
+.logo{display:flex;align-items:baseline;gap:10px}
+.logo-text{font-family:'DM Serif Display',serif;font-size:2.1rem;color:var(--ink);letter-spacing:-0.03em}
+.logo-dot{color:var(--accent)}
+.logo-tag{font-size:.7rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);background:var(--cream);border:1px solid var(--line);padding:3px 8px;border-radius:3px}
+.tagline{margin-top:7px;color:var(--muted);font-size:.9rem;font-weight:300}
+.columns{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+@media(max-width:720px){.columns{grid-template-columns:1fr}}
+.panel{background:white;border:1px solid var(--line);border-radius:8px;box-shadow:0 2px 12px var(--shadow);overflow:hidden}
+.panel-header{padding:13px 18px;border-bottom:1px solid var(--line);background:var(--cream);display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.panel-number{width:21px;height:21px;background:var(--ink);color:white;border-radius:50%;font-size:.7rem;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.panel-title{font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink)}
+.panel-body{padding:18px}
+.upload-zone{border:2px dashed var(--line);border-radius:6px;padding:26px 18px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:#fff5f5}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:1.8rem;margin-bottom:8px;display:block}
+.upload-label{font-size:.84rem;color:var(--muted);line-height:1.5}
+.upload-label strong{color:var(--accent);font-weight:600}
+.divider{display:flex;align-items:center;gap:11px;margin:14px 0;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--line)}
+.paste-area{width:100%;min-height:130px;border:1px solid var(--line);border-radius:6px;padding:13px;font-family:'DM Sans',sans-serif;font-size:.86rem;color:var(--ink);resize:vertical;outline:none;transition:border-color .2s;background:#fafaf8;line-height:1.6}
+.paste-area:focus{border-color:var(--accent);background:white}
+.paste-area:empty::before{content:attr(data-placeholder);color:#bbb;font-style:italic}
+.paste-hint{font-size:.72rem;color:var(--muted);margin-top:7px}
+.speed-section{margin-top:14px}
+.speed-row{display:flex;align-items:center;gap:10px}
+.speed-label{font-size:.78rem;color:var(--muted);font-weight:500;white-space:nowrap}
+.speed-slider{flex:1;-webkit-appearance:none;height:4px;background:var(--line);border-radius:2px;outline:none}
+.speed-slider::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;background:var(--accent);border-radius:50%;cursor:pointer;box-shadow:0 0 0 3px rgba(201,64,64,.15)}
+.speed-val{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--ink);min-width:60px;text-align:right;font-weight:500}
+.speed-presets{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.speed-preset{font-size:.7rem;padding:3px 9px;border:1px solid var(--line);border-radius:20px;cursor:pointer;color:var(--muted);background:white;transition:all .15s;font-family:'DM Sans',sans-serif}
+.speed-preset:hover,.speed-preset.active{background:var(--ink);color:white;border-color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:5px;font-size:.84rem;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:'DM Sans',sans-serif;letter-spacing:.01em}
+.btn-primary{background:var(--ink);color:white;width:100%;justify-content:center;margin-top:14px}
+.btn-primary:hover{background:#2d2d4a;transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-sm{padding:6px 12px;font-size:.76rem}
+.btn-outline{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn-outline:hover{border-color:var(--ink);background:var(--cream)}
+.btn-danger{background:transparent;color:var(--accent);border:1px solid #f0c8c8}
+.btn-danger:hover{background:#fff0f0}
+.status-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:7px}
+.status-badge{display:inline-flex;align-items:center;gap:5px;font-size:.76rem;font-weight:500;padding:4px 10px;border-radius:20px;letter-spacing:.02em}
+.status-idle{background:var(--cream);color:var(--muted);border:1px solid var(--line)}
+.status-typing{background:#fff4e0;color:#8a5c00;border:1px solid #f0d8a0}
+.status-done{background:#e8f5ee;color:var(--success);border:1px solid #b8dfc8}
+.pulse{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.progress-wrap{height:3px;background:var(--line);border-radius:2px;margin-bottom:10px;overflow:hidden}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));border-radius:2px;transition:width .2s;width:0%}
+.output-doc{min-height:280px;max-height:520px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:22px 26px;background:white;font-size:.9rem;line-height:1.75;color:var(--ink);font-family:'DM Sans',sans-serif;position:relative}
+.output-doc:empty::before{content:'Output will appear here as words are typed…';color:#c0bbb0;font-style:italic;font-size:.86rem}
+.cursor{display:inline-block;width:2px;height:1.1em;background:var(--accent);vertical-align:text-bottom;animation:blink .7s infinite;margin-left:1px}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.output-doc h1{font-family:'DM Serif Display',serif;font-size:1.55rem;margin:1em 0 .35em;line-height:1.25}
+.output-doc h2{font-family:'DM Serif Display',serif;font-size:1.22rem;margin:.85em 0 .28em;line-height:1.3}
+.output-doc h3{font-size:1.02rem;font-weight:600;margin:.75em 0 .22em}
+.output-doc h4{font-size:.94rem;font-weight:600;margin:.65em 0 .18em}
+.output-doc p{margin:0 0 .55em}
+.output-doc strong{font-weight:700}
+.output-doc em{font-style:italic}
+.output-doc u{text-decoration:underline}
+.output-doc ul,.output-doc ol{padding-left:1.5em;margin:.35em 0 .55em}
+.output-doc li{margin:.18em 0}
+.output-doc blockquote{border-left:3px solid var(--accent);padding-left:13px;color:var(--muted);font-style:italic;margin:.55em 0}
+.output-doc code{font-family:'DM Mono',monospace;font-size:.82em;background:var(--cream);padding:1px 5px;border-radius:3px}
+.output-doc pre{background:var(--cream);padding:11px 15px;border-radius:5px;overflow-x:auto;font-size:.82em;margin:.55em 0}
+.output-doc table{border-collapse:collapse;width:100%;margin:.75em 0;font-size:.86rem}
+.output-doc th{background:var(--cream);font-weight:600;text-align:left;padding:8px 11px;border:1px solid var(--line)}
+.output-doc td{padding:7px 11px;border:1px solid var(--line);vertical-align:top}
+.output-doc tr:nth-child(even) td{background:#faf9f6}
+.output-doc a{color:var(--blue);text-decoration:underline}
+.stats-row{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap}
+.stat{font-size:.73rem;color:var(--muted);display:flex;align-items:center;gap:4px}
+.stat strong{color:var(--ink);font-family:'DM Mono',monospace;font-size:.8rem}
+.export-panel{margin-top:14px;background:var(--cream);border:1px solid var(--line);border-radius:7px;padding:14px;display:none}
+.export-title{font-size:.74rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px}
+.export-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:7px}
+.export-btn{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 8px;background:white;border:1px solid var(--line);border-radius:6px;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;color:var(--ink);font-size:.73rem;font-weight:500;text-align:center}
+.export-btn:hover{border-color:var(--ink);box-shadow:0 2px 8px var(--shadow);transform:translateY(-1px)}
+.export-btn .ico{font-size:1.35rem;line-height:1}
+.file-chip{display:inline-flex;align-items:center;gap:7px;background:var(--cream);border:1px solid var(--line);border-radius:4px;padding:5px 11px;font-size:.8rem;color:var(--ink);margin-top:10px}
+.remove-file{cursor:pointer;color:var(--muted);font-size:.95rem}
+.remove-file:hover{color:var(--accent)}
+.ctrl-row{margin-left:auto;display:flex;gap:7px}
+.toast{position:fixed;bottom:26px;right:26px;background:var(--ink);color:white;padding:10px 17px;border-radius:6px;font-size:.83rem;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.25);transform:translateY(80px);opacity:0;transition:all .3s;z-index:999;max-width:300px}
+.toast.show{transform:translateY(0);opacity:1}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:white;border-radius:10px;padding:28px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.25)}
+.modal h3{font-family:'DM Serif Display',serif;font-size:1.25rem;margin-bottom:12px}
+.modal p{font-size:.86rem;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <span class="logo-text">HumanType<span class="logo-dot">.</span></span>
+      <span class="logo-tag">v2 Pro</span>
+    </div>
+    <p class="tagline">Upload or paste a Google Doc / Word file · replay word-by-word up to 1500 wpm · export in 13 formats</p>
+  </header>
+
+  <div class="columns">
+    <!-- INPUT -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-number">1</div>
+        <span class="panel-title">Source Document</span>
+      </div>
+      <div class="panel-body">
+        <div class="upload-zone" id="dropZone">
+          <input type="file" id="fileInput" accept=".docx,.doc,.txt,.html,.htm,.md">
+          <span class="upload-icon">📄</span>
+          <div class="upload-label"><strong>Click to upload</strong> or drag &amp; drop<br>.docx · .html · .md · .txt</div>
+        </div>
+        <div id="fileChip" style="display:none" class="file-chip">
+          <span>📎</span><span id="fileName"></span>
+          <span class="remove-file" id="removeFile">✕</span>
+        </div>
+        <div class="divider">or paste content</div>
+        <div id="pasteArea" class="paste-area" contenteditable="true"
+          data-placeholder="Paste your Google Doc or Word content here — bold, tables, headings all preserved…"></div>
+        <p class="paste-hint">Ctrl+V from Google Docs or Word preserves all rich formatting automatically.</p>
+        <div class="speed-section">
+          <div class="speed-row">
+            <span class="speed-label">⌨ Speed</span>
+            <input type="range" class="speed-slider" id="speedSlider" min="1" max="1500" value="120">
+            <span class="speed-val" id="speedVal">120 wpm</span>
+          </div>
+          <div class="speed-presets">
+            <span class="speed-preset" data-wpm="30">Slow</span>
+            <span class="speed-preset active" data-wpm="120">Normal</span>
+            <span class="speed-preset" data-wpm="300">Fast</span>
+            <span class="speed-preset" data-wpm="700">Turbo</span>
+            <span class="speed-preset" data-wpm="1500">Max 🚀</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="startBtn">▶ Start Typing</button>
+      </div>
+    </div>
+
+    <!-- OUTPUT -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-number">2</div>
+        <span class="panel-title">Live Output</span>
+        <div class="ctrl-row">
+          <button class="btn btn-outline btn-sm" id="pauseBtn" style="display:none">⏸ Pause</button>
+          <button class="btn btn-danger btn-sm" id="stopBtn" style="display:none">■ Stop</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="status-bar">
+          <span class="status-badge status-idle" id="statusBadge"><span class="pulse" style="opacity:.4"></span> Idle</span>
+          <span style="font-size:.75rem;color:var(--muted)" id="wordCounter">0 words</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="output-doc" id="outputDoc"></div>
+        <div class="stats-row">
+          <span class="stat">Typed: <strong id="statWords">0</strong></span>
+          <span class="stat">Time: <strong id="statTime">0s</strong></span>
+          <span class="stat">Live speed: <strong id="statWpm">—</strong></span>
+          <span class="stat">Total: <strong id="statTotal">0</strong></span>
+        </div>
+        <div class="export-panel" id="exportPanel">
+          <div class="export-title">⬇ Export As</div>
+          <div class="export-grid">
+            <button class="export-btn" id="expHtml"><span class="ico">🌐</span>HTML File</button>
+            <button class="export-btn" id="expDocx"><span class="ico">📝</span>Word .docx</button>
+            <button class="export-btn" id="expPdf"><span class="ico">📄</span>PDF</button>
+            <button class="export-btn" id="expPng"><span class="ico">🖼️</span>PNG Image</button>
+            <button class="export-btn" id="expMd"><span class="ico">✍️</span>Markdown</button>
+            <button class="export-btn" id="expTxt"><span class="ico">📃</span>Plain Text</button>
+            <button class="export-btn" id="expJson"><span class="ico">{ }</span>JSON</button>
+            <button class="export-btn" id="expJs"><span class="ico">⚡</span>JavaScript</button>
+            <button class="export-btn" id="expCsv"><span class="ico">📊</span>CSV Tables</button>
+            <button class="export-btn" id="expRtf"><span class="ico">🗒️</span>RTF</button>
+            <button class="export-btn" id="expGdocs"><span class="ico">📑</span>Google Docs</button>
+            <button class="export-btn" id="expCopy"><span class="ico">📋</span>Copy HTML</button>
+            <button class="export-btn" id="expCopyTxt"><span class="ico">📋</span>Copy Text</button>
+            <button class="export-btn" id="expClear" style="color:var(--accent)"><span class="ico">🗑️</span>Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Google Docs modal -->
+<div class="modal-overlay" id="gdocsModal">
+  <div class="modal">
+    <h3>Export to Google Docs</h3>
+    <p>Steps to open in Google Docs:<br><br>
+    1. Click <strong>Download &amp; Open Drive</strong> below — an HTML file will download<br>
+    2. Go to <strong>drive.google.com</strong> (opens automatically)<br>
+    3. Drag your downloaded file onto Drive — it imports as a Google Doc with formatting preserved</p>
+    <div class="modal-btns">
+      <button class="btn btn-outline btn-sm" id="gdocsCancel">Cancel</button>
+      <button class="btn btn-primary btn-sm" style="width:auto;margin:0" id="gdocsConfirm">Download &amp; Open Drive</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let tokens=[],tokenIdx=0,paused=false,stopped=false,timer=null,startTime=null,wordCount=0,totalWords=0,elemStack=[],currentWpm=120;
+
+// Speed
+speedSlider.addEventListener('input',()=>{currentWpm=+speedSlider.value;speedVal.textContent=currentWpm+' wpm';syncPresets();});
+document.querySelectorAll('.speed-preset').forEach(b=>b.addEventListener('click',()=>{currentWpm=+b.dataset.wpm;speedSlider.value=currentWpm;speedVal.textContent=currentWpm+' wpm';syncPresets();}));
+function syncPresets(){document.querySelectorAll('.speed-preset').forEach(b=>b.classList.toggle('active',+b.dataset.wpm===currentWpm));}
+
+// File upload
+$('fileInput').addEventListener('change',e=>{if(e.target.files[0])processFile(e.target.files[0]);});
+$('dropZone').addEventListener('dragover',e=>{e.preventDefault();$('dropZone').classList.add('drag-over');});
+$('dropZone').addEventListener('dragleave',()=>$('dropZone').classList.remove('drag-over'));
+$('dropZone').addEventListener('drop',e=>{e.preventDefault();$('dropZone').classList.remove('drag-over');if(e.dataTransfer.files[0])processFile(e.dataTransfer.files[0]);});
+$('removeFile').addEventListener('click',()=>{$('fileChip').style.display='none';$('fileInput').value='';$('pasteArea').innerHTML='';});
+
+function processFile(f){
+  $('fileName').textContent=f.name; $('fileChip').style.display='inline-flex';
+  const ext=f.name.split('.').pop().toLowerCase();
+  const reader=new FileReader();
+  if(ext==='docx'||ext==='doc'){
+    reader.onload=ev=>mammoth.convertToHtml({arrayBuffer:ev.target.result}).then(r=>{$('pasteArea').innerHTML=r.value;showToast('✓ Word document loaded');}).catch(e=>showToast('Error: '+e.message));
+    reader.readAsArrayBuffer(f);
+  }else if(ext==='html'||ext==='htm'){
+    reader.onload=ev=>{const d=new DOMParser().parseFromString(ev.target.result,'text/html');$('pasteArea').innerHTML=d.body.innerHTML;showToast('✓ HTML loaded');};
+    reader.readAsText(f);
+  }else if(ext==='md'){
+    reader.onload=ev=>{$('pasteArea').innerHTML=mdToHtml(ev.target.result);showToast('✓ Markdown loaded');};
+    reader.readAsText(f);
+  }else{
+    reader.onload=ev=>{$('pasteArea').innerHTML=ev.target.result.split('\n').map(l=>`<p>${esc(l)||'&nbsp;'}</p>`).join('');showToast('✓ Text loaded');};
+    reader.readAsText(f);
+  }
+}
+function esc(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function mdToHtml(md){return md.replace(/^#### (.+)$/gm,'<h4>$1</h4>').replace(/^### (.+)$/gm,'<h3>$1</h3>').replace(/^## (.+)$/gm,'<h2>$1</h2>').replace(/^# (.+)$/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/^[-*] (.+)$/gm,'<li>$1</li>').replace(/^(?!<[a-z])(.*\S.*)$/gm,'<p>$1</p>');}
+
+// Tokeniser
+function tokenizeNode(node,out){
+  if(node.nodeType===Node.TEXT_NODE){node.textContent.split(/(\s+)/).forEach(p=>{if(!p)return;out.push(/^\s+$/.test(p)?{type:'space',content:p}:{type:'word',content:p});});return;}
+  if(node.nodeType!==Node.ELEMENT_NODE)return;
+  const tag=node.tagName.toLowerCase();
+  if(tag==='table'){tokenizeTable(node,out);return;}
+  const attrs={};for(const a of node.attributes)attrs[a.name]=a.value;
+  const all=['p','div','h1','h2','h3','h4','h5','h6','li','blockquote','pre','section','article','ul','ol','thead','tbody','tfoot','b','strong','i','em','u','s','strike','code','mark','sup','sub','span','a','label','address'];
+  if(tag==='br'){out.push({type:'br'});return;}
+  if(all.includes(tag)){out.push({type:'open',tag,attrs});for(const c of node.childNodes)tokenizeNode(c,out);out.push({type:'close',tag});}
+  else{for(const c of node.childNodes)tokenizeNode(c,out);}
+}
+function tokenizeTable(tbl,out){const attrs={};for(const a of tbl.attributes)attrs[a.name]=a.value;out.push({type:'open',tag:'table',attrs});for(const c of tbl.childNodes){const ct=c.tagName?c.tagName.toLowerCase():'';if(['thead','tbody','tfoot'].includes(ct)){out.push({type:'open',tag:ct,attrs:{}});for(const r of c.childNodes)if(r.tagName&&r.tagName.toLowerCase()==='tr')tokenizeRow(r,out);out.push({type:'close',tag:ct});}else if(ct==='tr')tokenizeRow(c,out);}out.push({type:'close',tag:'table'});}
+function tokenizeRow(row,out){out.push({type:'open',tag:'tr',attrs:{}});for(const cell of row.childNodes){const ct=cell.tagName?cell.tagName.toLowerCase():'';if(ct==='td'||ct==='th'){const attrs={};for(const a of cell.attributes)attrs[a.name]=a.value;out.push({type:'open',tag:ct,attrs});for(const c of cell.childNodes)tokenizeNode(c,out);out.push({type:'close',tag:ct});}}out.push({type:'close',tag:'tr'});}
+
+// Apply token
+function applyToken(tok){
+  const cur=()=>elemStack[elemStack.length-1];
+  if(tok.type==='open'){const el=document.createElement(tok.tag);if(tok.attrs){['colspan','rowspan','style','href','class','target'].forEach(k=>{if(tok.attrs[k])el.setAttribute(k,tok.attrs[k]);});}cur().appendChild(el);elemStack.push(el);}
+  else if(tok.type==='close'){while(elemStack.length>1){const p=elemStack.pop();if(p.tagName&&p.tagName.toLowerCase()===tok.tag)break;}}
+  else if(tok.type==='word'){cur().appendChild(document.createTextNode(tok.content));wordCount++;}
+  else if(tok.type==='space'){cur().appendChild(document.createTextNode(tok.content));}
+  else if(tok.type==='br'){cur().appendChild(document.createElement('br'));}
+}
+
+// Typing engine
+function startTyping(){
+  const html=$('pasteArea').innerHTML.trim();if(!html){showToast('Please paste or upload content first.');return;}
+  const doc=new DOMParser().parseFromString(`<body>${html}</body>`,'text/html');
+  tokens=[];for(const c of doc.body.childNodes)tokenizeNode(c,tokens);
+  totalWords=tokens.filter(t=>t.type==='word').length;if(!totalWords){showToast('No text found.');return;}
+  tokenIdx=0;wordCount=0;paused=false;stopped=false;startTime=Date.now();
+  $('outputDoc').innerHTML='';elemStack=[$('outputDoc')];
+  $('wordCounter').textContent=totalWords+' words total';$('statTotal').textContent=totalWords;
+  setStatus('typing');$('startBtn').disabled=true;$('pauseBtn').style.display='';$('stopBtn').style.display='';$('exportPanel').style.display='none';
+  const cursor=document.createElement('span');cursor.className='cursor';$('outputDoc').appendChild(cursor);
+  tick(cursor);
+}
+function tick(cursor){
+  if(stopped||tokenIdx>=tokens.length){if(cursor.parentNode)cursor.parentNode.removeChild(cursor);setStatus('done');$('startBtn').disabled=false;$('pauseBtn').style.display='none';$('stopBtn').style.display='none';$('exportPanel').style.display='block';updateStats();if(!stopped)showToast('✓ Typing complete!');return;}
+  if(paused){timer=setTimeout(()=>tick(cursor),100);return;}
+  const tok=tokens[tokenIdx++];applyToken(tok);
+  const curEl=elemStack[elemStack.length-1];curEl.appendChild(cursor);cursor.scrollIntoView({block:'nearest',behavior:'smooth'});
+  updateStats();
+  const msPerWord=currentWpm>0?Math.round(60000/currentWpm):500;
+  const delay=tok.type==='word'?msPerWord*(0.8+Math.random()*0.4):tok.type==='space'?msPerWord*0.08:0;
+  timer=setTimeout(()=>tick(cursor),Math.max(0,delay));
+}
+function updateStats(){
+  $('statWords').textContent=wordCount;
+  const el=Math.max(1,(Date.now()-startTime)/1000);
+  $('statTime').textContent=el<60?Math.round(el)+'s':(el/60).toFixed(1)+'m';
+  $('statWpm').textContent=Math.round((wordCount/el)*60)+' wpm';
+  $('progressBar').style.width=(totalWords>0?(wordCount/totalWords)*100:0)+'%';
+}
+
+// Controls
+$('startBtn').addEventListener('click',startTyping);
+$('pauseBtn').addEventListener('click',()=>{paused=!paused;$('pauseBtn').textContent=paused?'▶ Resume':'⏸ Pause';setStatus(paused?'idle':'typing');});
+$('stopBtn').addEventListener('click',()=>{stopped=true;clearTimeout(timer);document.querySelectorAll('.cursor').forEach(c=>c.remove());setStatus('idle');$('startBtn').disabled=false;$('pauseBtn').style.display='none';$('stopBtn').style.display='none';$('exportPanel').style.display='block';});
+function setStatus(s){const b=$('statusBadge');b.className='status-badge';if(s==='typing'){b.classList.add('status-typing');b.innerHTML='<span class="pulse"></span> Typing…';}else if(s==='done'){b.classList.add('status-done');b.innerHTML='✓ Complete';}else{b.classList.add('status-idle');b.innerHTML='<span class="pulse" style="opacity:.4"></span> Idle';}}
+
+// Helpers
+function getClean(){const c=$('outputDoc').cloneNode(true);c.querySelectorAll('.cursor').forEach(x=>x.remove());return c;}
+function getOuterHtml(){return getClean().innerHTML;}
+function getPlainText(){return getClean().innerText||getClean().textContent;}
+function fullDoc(body){return`<!DOCTYPE html>\n<html><head><meta charset="UTF-8"><title>HumanType Export</title>\n<style>body{font-family:Georgia,serif;max-width:820px;margin:40px auto;padding:0 28px;line-height:1.75;color:#1a1a2e;font-size:15px}h1{font-size:2rem;margin:1em 0 .4em}h2{font-size:1.5rem;margin:.9em 0 .3em}h3{font-size:1.15rem;margin:.8em 0 .25em}table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid #d4cfc4;padding:8px 12px;text-align:left}th{background:#ede8dc;font-weight:600}tr:nth-child(even)td{background:#faf9f6}blockquote{border-left:3px solid #c94040;padding-left:14px;color:#7a7265;font-style:italic;margin:.6em 0}code{background:#ede8dc;padding:1px 5px;border-radius:3px}pre{background:#ede8dc;padding:12px 16px;border-radius:5px}a{color:#2563eb}ul,ol{padding-left:1.5em}li{margin:.2em 0}p{margin:0 0 .6em}</style></head><body>${body}</body></html>`;}
+function dl(content,name,mime){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:mime}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),10000);}
+let toastT;function showToast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800);}
+
+// ── Exports ───────────────────────────────────────────────────────────────────
+$('expHtml').addEventListener('click',()=>{dl(fullDoc(getOuterHtml()),'humantype.html','text/html');showToast('✓ HTML downloaded');});
+
+$('expMd').addEventListener('click',()=>{
+  function nodeToMd(n){
+    if(n.nodeType===Node.TEXT_NODE)return n.textContent;
+    if(n.nodeType!==Node.ELEMENT_NODE)return'';
+    const tag=n.tagName.toLowerCase(),inner=[...n.childNodes].map(nodeToMd).join('');
+    const map={h1:`# ${inner}\n\n`,h2:`## ${inner}\n\n`,h3:`### ${inner}\n\n`,h4:`#### ${inner}\n\n`,p:inner+'\n\n',br:'\n',b:`**${inner}**`,strong:`**${inner}**`,i:`*${inner}*`,em:`*${inner}*`,u:`_${inner}_`,code:'`'+inner+'`',pre:'```\n'+inner+'\n```\n\n',blockquote:inner.split('\n').map(l=>l?'> '+l:'').join('\n')+'\n\n',a:`[${inner}](${n.getAttribute('href')||''})`,li:`- ${inner}\n`};
+    if(tag==='table'){const rows=[...n.querySelectorAll('tr')];if(!rows.length)return'';const toR=r=>'| '+[...r.querySelectorAll('th,td')].map(c=>(c.innerText||c.textContent).trim().replace(/\|/g,'\\|')).join(' | ')+' |';const h=toR(rows[0]);const s='| '+[...rows[0].querySelectorAll('th,td')].map(()=>'---').join(' | ')+' |';return[h,s,...rows.slice(1).map(toR)].join('\n')+'\n\n';}
+    return map[tag]!==undefined?map[tag]:inner;
+  }
+  dl(nodeToMd(getClean()).trim(),'humantype.md','text/markdown');showToast('✓ Markdown downloaded');
+});
+
+$('expTxt').addEventListener('click',()=>{dl(getPlainText(),'humantype.txt','text/plain');showToast('✓ Text downloaded');});
+
+$('expJson').addEventListener('click',()=>{
+  const text=getPlainText(),words=text.split(/\s+/).filter(Boolean);
+  dl(JSON.stringify({exported:new Date().toISOString(),wordCount:words.length,charCount:text.length,html:getOuterHtml(),plainText:text,words},null,2),'humantype.json','application/json');
+  showToast('✓ JSON downloaded');
+});
+
+$('expJs').addEventListener('click',()=>{
+  const text=getPlainText(),html=getOuterHtml(),words=text.split(/\s+/).filter(Boolean);
+  const js=`// HumanType Export — ${new Date().toISOString()}\n\nconst documentData = {\n  html: ${JSON.stringify(html)},\n  text: ${JSON.stringify(text)},\n  words: ${JSON.stringify(words)},\n  wordCount: ${words.length},\n  charCount: ${text.length},\n  exportedAt: "${new Date().toISOString()}"\n};\n\n/** Render document HTML into a target element */\nexport function renderDocument(el) {\n  el.innerHTML = documentData.html;\n}\n\n/** Replay the document word by word at given WPM */\nexport function replayWords(el, wpm = 120, onDone) {\n  const ws = documentData.words;\n  let i = 0;\n  const delay = Math.round(60000 / wpm);\n  (function next() {\n    if (i >= ws.length) { if (onDone) onDone(); return; }\n    el.textContent += (i > 0 ? ' ' : '') + ws[i++];\n    setTimeout(next, delay + (Math.random() - 0.5) * delay * 0.4);\n  })();\n}\n\nexport default documentData;\n`;
+  dl(js,'humantype.js','text/javascript');showToast('✓ JS module downloaded');
+});
+
+$('expCsv').addEventListener('click',()=>{
+  const tables=[...getClean().querySelectorAll('table')];
+  if(!tables.length){showToast('No tables found in output');return;}
+  let csv='';tables.forEach((tbl,i)=>{if(i>0)csv+='\n\n';tbl.querySelectorAll('tr').forEach(row=>{csv+=[...row.querySelectorAll('th,td')].map(c=>'"'+(c.innerText||c.textContent).replace(/"/g,'""')+'"').join(',')+'\n';});});
+  dl(csv,'humantype.csv','text/csv');showToast('✓ CSV downloaded');
+});
+
+$('expRtf').addEventListener('click',()=>{
+  function toRtf(n){
+    if(n.nodeType===Node.TEXT_NODE)return n.textContent.replace(/\\/g,'\\\\').replace(/\{/g,'\\{').replace(/\}/g,'\\}');
+    if(n.nodeType!==Node.ELEMENT_NODE)return'';
+    const tag=n.tagName.toLowerCase(),inner=[...n.childNodes].map(toRtf).join('');
+    const m={h1:`\\pard\\f1\\fs44\\b ${inner}\\b0\\fs24\\f0\\par\n`,h2:`\\pard\\f1\\fs36\\b ${inner}\\b0\\fs24\\f0\\par\n`,h3:`\\pard\\f1\\fs30\\b ${inner}\\b0\\fs24\\f0\\par\n`,p:`\\pard ${inner}\\par\n`,div:`\\pard ${inner}\\par\n`,br:'\\line\n',b:`\\b ${inner}\\b0 `,strong:`\\b ${inner}\\b0 `,i:`\\i ${inner}\\i0 `,em:`\\i ${inner}\\i0 `,u:`\\ul ${inner}\\ulnone `,li:`\\pard\\li360\\bullet  ${inner}\\par\n`};
+    return m[tag]!==undefined?m[tag]:inner;
+  }
+  dl(`{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}{\\f1 Arial;}}\n\\f0\\fs24\n${toRtf(getClean())}\n}`,'humantype.rtf','application/rtf');
+  showToast('✓ RTF downloaded');
+});
+
+$('expCopy').addEventListener('click',()=>{navigator.clipboard.writeText(getOuterHtml()).then(()=>showToast('✓ HTML copied')).catch(()=>{const ta=document.createElement('textarea');ta.value=getOuterHtml();document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('✓ HTML copied');});});
+$('expCopyTxt').addEventListener('click',()=>{navigator.clipboard.writeText(getPlainText()).then(()=>showToast('✓ Text copied')).catch(()=>{const ta=document.createElement('textarea');ta.value=getPlainText();document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('✓ Text copied');});});
+
+$('expPng').addEventListener('click',async()=>{
+  showToast('Rendering image…');
+  const wrapper=document.createElement('div');
+  wrapper.style.cssText='position:fixed;left:-9999px;top:0;padding:32px;background:white;width:820px;font-family:Georgia,serif;font-size:15px;line-height:1.75;color:#1a1a2e;';
+  const style=document.createElement('style');
+  style.textContent='table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid #d4cfc4;padding:8px 12px}th{background:#ede8dc;font-weight:600}tr:nth-child(even)td{background:#faf9f6}h1{font-size:2rem}h2{font-size:1.5rem}h3{font-size:1.1rem;font-weight:600}blockquote{border-left:3px solid #c94040;padding-left:14px;color:#7a7265;font-style:italic}code{background:#ede8dc;padding:1px 4px;border-radius:3px}ul,ol{padding-left:1.5em}li{margin:.2em 0}p{margin:0 0 .5em}';
+  wrapper.appendChild(style);wrapper.appendChild(getClean());document.body.appendChild(wrapper);
+  try{const canvas=await html2canvas(wrapper,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false});canvas.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='humantype.png';a.click();showToast('✓ PNG downloaded');},'image/png');}
+  catch(e){showToast('PNG error: '+e.message);}finally{document.body.removeChild(wrapper);}
+});
+
+$('expPdf').addEventListener('click',async()=>{
+  showToast('Generating PDF…');
+  const wrapper=document.createElement('div');
+  wrapper.style.cssText='position:fixed;left:-9999px;top:0;padding:30px;background:white;width:794px;font-family:Georgia,serif;font-size:14px;line-height:1.7;color:#1a1a2e;';
+  const style=document.createElement('style');
+  style.textContent='table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid #d4cfc4;padding:7px 10px}th{background:#ede8dc;font-weight:600}h1{font-size:1.8rem}h2{font-size:1.4rem}blockquote{border-left:3px solid #c94040;padding-left:12px;color:#7a7265;font-style:italic}p{margin:0 0 .5em}ul,ol{padding-left:1.4em}';
+  wrapper.appendChild(style);wrapper.appendChild(getClean());document.body.appendChild(wrapper);
+  try{
+    const canvas=await html2canvas(wrapper,{scale:1.5,backgroundColor:'#ffffff',useCORS:true,logging:false});
+    document.body.removeChild(wrapper);
+    const{jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const pW=pdf.internal.pageSize.getWidth(),pH=pdf.internal.pageSize.getHeight();
+    const imgD=canvas.toDataURL('image/jpeg',0.92);
+    const imgH=(canvas.height*pW)/canvas.width;
+    let y=0;
+    while(y<imgH){if(y>0)pdf.addPage();pdf.addImage(imgD,'JPEG',0,-y,pW,imgH);y+=pH;}
+    pdf.save('humantype.pdf');showToast('✓ PDF downloaded');
+  }catch(e){if(document.body.contains(wrapper))document.body.removeChild(wrapper);showToast('PDF error: '+e.message);}
+});
+
+$('expDocx').addEventListener('click',async()=>{
+  showToast('Building Word document…');
+  try{
+    const{Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,HeadingLevel,BorderStyle,WidthType,ShadingType}=docx;
+    const bdr={style:BorderStyle.SINGLE,size:1,color:'CCCCCC'};const bdrs={top:bdr,bottom:bdr,left:bdr,right:bdr};
+    const children=[];
+    const hMap={h1:HeadingLevel.HEADING_1,h2:HeadingLevel.HEADING_2,h3:HeadingLevel.HEADING_3,h4:HeadingLevel.HEADING_4};
+    function runs(el){
+      const r=[];
+      (function walk(n,b,i,u){
+        if(n.nodeType===Node.TEXT_NODE){const t=n.textContent;if(t)r.push(new TextRun({text:t,bold:b,italics:i,underline:u?{}:undefined}));return;}
+        if(n.nodeType!==Node.ELEMENT_NODE)return;
+        const tag=n.tagName.toLowerCase();
+        const nb=b||['b','strong'].includes(tag),ni=i||['i','em'].includes(tag),nu=u||tag==='u';
+        for(const c of n.childNodes)walk(c,nb,ni,nu);
+      })(el,false,false,false);
+      return r;
+    }
+    function processEl(el){
+      if(el.nodeType!==Node.ELEMENT_NODE)return;
+      const tag=el.tagName.toLowerCase();
+      if(tag==='table'){
+        const rows=[];
+        el.querySelectorAll('tr').forEach(tr=>{
+          const cells=[];
+          tr.querySelectorAll('th,td').forEach(td=>{
+            const isH=td.tagName.toLowerCase()==='th';
+            cells.push(new TableCell({borders:bdrs,width:{size:1800,type:WidthType.DXA},margins:{top:80,bottom:80,left:120,right:120},shading:{fill:isH?'EDEDE0':'FFFFFF',type:ShadingType.CLEAR},children:[new Paragraph({children:[new TextRun({text:(td.innerText||td.textContent).trim(),bold:isH})]})]}));
+          });
+          if(cells.length)rows.push(new TableRow({children:cells}));
+        });
+        if(rows.length)children.push(new Table({width:{size:9360,type:WidthType.DXA},rows}));
+        return;
+      }
+      if(hMap[tag]){const r=runs(el);if(r.length)children.push(new Paragraph({heading:hMap[tag],children:r}));return;}
+      if(['p','div','li','blockquote','address'].includes(tag)){const r=runs(el);if(r.length)children.push(tag==='li'?new Paragraph({bullet:{level:0},children:r}):new Paragraph({children:r}));return;}
+      if(['ul','ol'].includes(tag)){for(const c of el.childNodes)processEl(c);return;}
+      for(const c of el.childNodes)processEl(c);
+    }
+    for(const c of getClean().childNodes)processEl(c);
+    if(!children.length)children.push(new Paragraph({children:[new TextRun(getPlainText())]}));
+    const doc2=new Document({sections:[{properties:{page:{size:{width:12240,height:15840},margin:{top:1440,right:1440,bottom:1440,left:1440}}},children}]});
+    const buf=await Packer.toBlob(doc2);
+    const a=document.createElement('a');a.href=URL.createObjectURL(buf);a.download='humantype.docx';a.click();
+    showToast('✓ Word document downloaded');
+  }catch(e){console.error(e);showToast('DOCX error: '+e.message);}
+});
+
+$('expGdocs').addEventListener('click',()=>$('gdocsModal').classList.add('open'));
+$('gdocsCancel').addEventListener('click',()=>$('gdocsModal').classList.remove('open'));
+$('gdocsConfirm').addEventListener('click',()=>{
+  $('gdocsModal').classList.remove('open');
+  dl(fullDoc(getOuterHtml()),'humantype-for-gdocs.html','text/html');
+  setTimeout(()=>window.open('https://drive.google.com','_blank'),600);
+  showToast('✓ Saved — drag file onto Google Drive');
+});
+
+$('expClear').addEventListener('click',()=>{
+  $('outputDoc').innerHTML='';$('progressBar').style.width='0%';
+  $('statWords').textContent='0';$('statTime').textContent='0s';$('statWpm').textContent='—';
+  $('wordCounter').textContent='0 words';$('exportPanel').style.display='none';setStatus('idle');
+});
+</script>
+</body>
+</html>
